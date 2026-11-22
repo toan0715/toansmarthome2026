@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Toan Smart Home</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      background-color: #07060c;
+      background-image:
+        radial-gradient(circle at 76% 12%, rgba(114, 84, 226, 0.32) 0%, rgba(18, 15, 32, 0) 48%),
+        radial-gradient(circle at 20% 78%, rgba(88, 66, 185, 0.14) 0%, rgba(8, 7, 13, 0) 50%);
+      color: #ffffff;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding-bottom: 96px;
+    }
+    .app { width: 100%; max-width: 440px; padding: 16px 16px 12px; }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .header h1 { font-size: 25px; font-weight: 700; letter-spacing: -0.3px; }
+    .wifi-indicator { display: flex; align-items: center; gap: 8px; }
+    .wifi-led-svg { width: 40px; height: 40px; flex-shrink: 0; }
+    .wifi-led-label { font-size: 13px; font-weight: 600; line-height: 1.22; color: #22e53b; text-align: center; }
+    .wifi-indicator.offline .wifi-led-label { color: #fbbf24; }
+    @keyframes pulseLed {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.92); }
+    }
+    .wifi-indicator.offline .wifi-led-svg { animation: pulseLed 1.2s infinite ease-in-out; }
+
+    /* Weather Hero */
+    .weather-hero {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 18px;
+      padding: 0 2px;
+    }
+    .weather-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .weather-icon-wrap { width: 64px; height: 52px; display: flex; align-items: center; justify-content: center; }
+    .weather-temp { font-size: 35px; font-weight: 600; line-height: 1.05; letter-spacing: -1px; }
+    .weather-cond { font-size: 14.5px; color: #d8d8e2; margin-top: 2px; }
+    .weather-divider { width: 1px; height: 54px; background: rgba(255, 255, 255, 0.22); flex-shrink: 0; }
+    .weather-meta { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #e4e4ec; min-width: 0; flex: 1; }
+    .meta-row { display: flex; align-items: center; gap: 6px; line-height: 1.25; }
+    .meta-icon { width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .loc-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 112px; }
+    .clock-box {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #f4f4fa;
+      flex-shrink: 0;
+      padding-left: 2px;
+    }
+
+    /* Relay Grid */
+    .relay-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 11px; margin-bottom: 16px; }
+    .relay-card {
+      background: linear-gradient(155deg, rgba(35, 34, 43, 0.94) 0%, rgba(19, 18, 25, 0.98) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 20px;
+      padding: 11px 13px 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 108px;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      transition: transform 0.12s ease, border-color 0.2s ease;
+    }
+    .relay-card:active { transform: scale(0.985); }
+    .relay-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 6px; }
+    .relay-icon-box { width: 64px; height: 46px; display: flex; align-items: center; justify-content: flex-start; cursor: pointer; }
+
+    .switch { position: relative; display: inline-block; width: 48px; height: 27px; flex-shrink: 0; margin-top: 2px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background-color: #36363f; transition: 0.22s; border-radius: 34px; }
+    .slider:before { position: absolute; content: ""; height: 21px; width: 21px; left: 3px; bottom: 3px; background-color: #ffffff; transition: 0.22s; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.4); }
+    input:checked + .slider { background-color: #5b5ce6; }
+    input:checked + .slider:before { transform: translateX(21px); }
+
+    .relay-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .relay-title { font-size: 15px; font-weight: 500; color: #f3f3f7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .timer-badge { font-size: 10px; font-weight: 600; color: #fde047; background: rgba(250, 204, 21, 0.16); padding: 2px 6px; border-radius: 8px; flex-shrink: 0; }
+
+    /* Master Button */
+    .master-btn {
+      width: 100%;
+      background: linear-gradient(90deg, #4b4ce0 0%, #6162f0 50%, #5253e6 100%);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 999px;
+      padding: 14px 22px;
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(84, 85, 232, 0.38);
+      transition: transform 0.12s ease;
+    }
+    .master-btn:active { transform: scale(0.988); }
+    .master-btn-center { display: flex; align-items: center; gap: 11px; }
+
+    /* Bottom Navigation */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 440px;
+      height: 78px;
+      background: linear-gradient(180deg, #272630 0%, #191820 100%);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      border-top-left-radius: 30px;
+      border-top-right-radius: 30px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 4px 10px 8px;
+      box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.55);
+      z-index: 50;
+    }
+    .nav-btn { background: none; border: none; color: #9e9eb0; font-size: 12px; font-weight: 500; display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; padding: 6px 12px; }
+    .nav-btn.active { color: #818cf8; }
+    .nav-btn.active::after { content: ""; width: 28px; height: 3px; background: #818cf8; border-radius: 3px; margin-top: 1px; }
+
+    /* Sub Tabs */
+    .tab-view { display: none; }
+    .tab-view.active { display: block; }
+    .page-title { font-size: 22px; font-weight: 700; margin-bottom: 16px; }
+    .panel-card { background: rgba(29, 28, 37, 0.94); border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 22px; padding: 16px; margin-bottom: 14px; }
+    .panel-title { font-size: 15.5px; font-weight: 600; color: #e2e4f0; margin-bottom: 12px; }
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 12.5px; color: #9e9eb0; margin-bottom: 6px; }
+    .input-ctrl { width: 100%; background: #121118; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; padding: 11px 12px; color: #ffffff; font-size: 14px; outline: none; }
+    .input-ctrl:focus { border-color: #6366f1; }
+    .row-2 { display: flex; gap: 10px; }
+    .btn-primary { width: 100%; background: #5b5ce6; color: #fff; border: none; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-on { flex: 1; background: #22c55e; color: #05200e; border: none; border-radius: 12px; padding: 11px; font-weight: 600; cursor: pointer; }
+    .btn-off { flex: 1; background: #ef4444; color: #fff; border: none; border-radius: 12px; padding: 11px; font-weight: 600; cursor: pointer; }
+    .btn-subtle { background: #2b2a36; color: #e4e4ec; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 7px 12px; font-size: 12.5px; cursor: pointer; }
+    .days-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; font-size: 13px; color: #d4d4e0; }
+    .days-grid label { display: flex; align-items: center; gap: 6px; background: #14131b; padding: 7px 9px; border-radius: 10px; cursor: pointer; }
+    .info-box { background: #13121a; border-radius: 12px; padding: 11px 12px; font-size: 12.5px; color: #b4b4c4; line-height: 1.55; margin-bottom: 12px; word-break: break-word; }
+    .feedback { font-size: 13px; color: #4ade80; margin-top: 8px; text-align: center; min-height: 18px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- TAB TRANG CHỦ -->
+    <div id="tab-home" class="tab-view active">
+      <div class="header">
+        <h1>Toan Smart Home</h1>
+        <div class="wifi-indicator" id="wifiIndicator">
+          <svg class="wifi-led-svg" id="wifiLedSvg" viewBox="0 0 44 44" fill="none">
+            <defs>
+              <radialGradient id="ledGlowGreen" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#4ADE80" stop-opacity="0.95"/>
+                <stop offset="55%" stop-color="#22C55E" stop-opacity="0.38"/>
+                <stop offset="100%" stop-color="#22C55E" stop-opacity="0"/>
+              </radialGradient>
+              <radialGradient id="ledGlowWarn" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#FACC15" stop-opacity="0.95"/>
+                <stop offset="55%" stop-color="#F59E0B" stop-opacity="0.38"/>
+                <stop offset="100%" stop-color="#F59E0B" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <circle id="ledHalo" cx="22" cy="22" r="20" fill="url(#ledGlowGreen)"/>
+            <g id="ledRays" stroke="#22E53B" stroke-width="2" stroke-linecap="round">
+              <line x1="22" y1="3" x2="22" y2="7"/><line x1="22" y1="37" x2="22" y2="41"/>
+              <line x1="3" y1="22" x2="7" y2="22"/><line x1="37" y1="22" x2="41" y2="22"/>
+              <line x1="8.5" y1="8.5" x2="11.5" y2="11.5"/><line x1="32.5" y1="32.5" x2="35.5" y2="35.5"/>
+              <line x1="35.5" y1="8.5" x2="32.5" y2="11.5"/><line x1="11.5" y1="32.5" x2="8.5" y2="35.5"/>
+            </g>
+            <circle id="ledRing" cx="22" cy="22" r="10.5" fill="#16A34A" stroke="#86EFAC" stroke-width="1.5"/>
+            <circle cx="22" cy="22" r="4.5" fill="#FFFFFF"/>
+          </svg>
+          <div class="wifi-led-label" id="wifiLedText">Kết nối<br>WiFi</div>
+        </div>
+      </div>
+
+      <div class="weather-hero">
+        <div class="weather-left">
+          <div class="weather-icon-wrap">
+            <svg width="64" height="52" viewBox="0 0 68 56" fill="none">
+              <circle cx="26" cy="21" r="11.5" fill="#FACC15"/>
+              <g stroke="#FACC15" stroke-width="2.4" stroke-linecap="round">
+                <line x1="26" y1="4" x2="26" y2="7.5"/><line x1="26" y1="34.5" x2="26" y2="38"/>
+                <line x1="9" y1="21" x2="12.5" y2="21"/><line x1="39.5" y1="21" x2="43" y2="21"/>
+                <line x1="14" y1="9" x2="16.5" y2="11.5"/><line x1="35.5" y1="30.5" x2="38" y2="33"/>
+                <line x1="38" y1="9" x2="35.5" y2="11.5"/><line x1="16.5" y1="30.5" x2="14" y2="33"/>
+              </g>
+              <path d="M22 48h28a10 10 0 0 0 1.4-19.9A13.5 13.5 0 0 0 25.5 23 9.5 9.5 0 0 0 22 48z" fill="url(#cloudGrad)"/>
+              <defs>
+                <linearGradient id="cloudGrad" x1="35" y1="18" x2="35" y2="48" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#FFFFFF"/><stop offset="100%" stop-color="#CBD5E1"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <div>
+            <div class="weather-temp" id="weatherTemp">28°C</div>
+            <div class="weather-cond" id="weatherCond">Có mây</div>
+          </div>
+        </div>
+
+        <div class="weather-divider"></div>
+
+        <div class="weather-meta">
+          <div class="meta-row">
+            <span class="meta-icon">
+              <svg width="13" height="15" viewBox="0 0 16 18" fill="#E4E4EC">
+                <path d="M8 0.5A5.8 5.8 0 0 0 2.2 6.3c0 4.3 5.8 11.2 5.8 11.2s5.8-6.9 5.8-11.2A5.8 5.8 0 0 0 8 0.5zm0 8a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4z"/>
+              </svg>
+            </span>
+            <span class="loc-text" id="locationText">Hà Nội</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-icon">
+              <svg width="13" height="14" viewBox="0 0 16 16" fill="none" stroke="#a78bfa" stroke-width="1.5">
+                <rect x="2" y="3" width="12" height="11" rx="2"/><line x1="2" y1="6.5" x2="14" y2="6.5"/>
+                <line x1="5.5" y1="1.5" x2="5.5" y2="4"/><line x1="10.5" y1="1.5" x2="10.5" y2="4"/>
+              </svg>
+            </span>
+            <span id="dateText" style="color:#c4b5fd;">CN, 22/11/2026</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-icon">
+              <svg width="12" height="15" viewBox="0 0 14 18" fill="#E4E4EC">
+                <path d="M7 1C7 1 1.5 7.8 1.5 12a5.5 5.5 0 0 0 11 0C12.5 7.8 7 1 7 1z"/>
+              </svg>
+            </span>
+            <span id="outdoorHumText" style="color:#c4b5fd;">Độ ẩm: 72%</span>
+          </div>
+        </div>
+
+        <div class="clock-box" title="Thời gian thực">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E4E4EC" stroke-width="2">
+            <circle cx="12" cy="12" r="9"></circle>
+            <polyline points="12 7 12 12 15.5 14"></polyline>
+          </svg>
+          <span id="clockText">12:17</span>
+        </div>
+      </div>
+
+      <div class="relay-grid" id="relayGrid"></div>
+
+      <button class="master-btn" id="masterBtn" onclick="toggleAllDevices()">
+        <span style="width:18px;"></span>
+        <span class="master-btn-center">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+            <line x1="12" y1="2" x2="12" y2="12"></line>
+          </svg>
+          <span id="masterBtnText">Tắt tất cả thiết bị</span>
+        </span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+    </div>
+
+    <!-- TAB HẸN GIỜ -->
+    <div id="tab-timer" class="tab-view">
+      <div class="page-title">Hẹn giờ & Lịch tự động</div>
+
+      <div class="panel-card">
+        <div class="panel-title">1. Hẹn giờ đếm ngược (8 thiết bị)</div>
+        <div class="field">
+          <label>Chọn thiết bị (Relay 1 - 8)</label>
+          <select class="input-ctrl" id="timerChannel" onchange="syncTimerCancelBtn()"></select>
+        </div>
+        <div class="field">
+          <label>Thời gian đếm ngược (phút)</label>
+          <input type="number" class="input-ctrl" id="timerMinutes" min="1" max="10080" placeholder="Ví dụ: 5, 15, 30, 60...">
+        </div>
+        <div class="row-2">
+          <button class="btn-on" onclick="submitTimer(1)">Hẹn giờ BẬT</button>
+          <button class="btn-off" onclick="submitTimer(0)">Hẹn giờ TẮT</button>
+        </div>
+        <button class="btn-subtle" id="cancelTimerBtn" onclick="cancelTimer()" style="width:100%; margin-top:10px; display:none;">Hủy hẹn giờ</button>
+        <div class="feedback" id="timerFeedback"></div>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-title">2. Lịch hẹn lặp theo ngày trong tuần</div>
+        <div class="field">
+          <label>Chọn thiết bị</label>
+          <select class="input-ctrl" id="scheduleRelay"></select>
+        </div>
+        <div class="field">
+          <label>Giờ thực hiện (Giờ : Phút)</label>
+          <div class="row-2">
+            <input type="number" class="input-ctrl" id="scheduleHour" min="0" max="23" value="18">
+            <input type="number" class="input-ctrl" id="scheduleMinute" min="0" max="59" value="0">
+          </div>
+        </div>
+        <div class="field">
+          <label>Lặp lại vào các thứ</label>
+          <div class="days-grid">
+            <label><input type="checkbox" class="schedule-day" value="0"> CN</label>
+            <label><input type="checkbox" class="schedule-day" value="1" checked> T2</label>
+            <label><input type="checkbox" class="schedule-day" value="2" checked> T3</label>
+            <label><input type="checkbox" class="schedule-day" value="3" checked> T4</label>
+            <label><input type="checkbox" class="schedule-day" value="4" checked> T5</label>
+            <label><input type="checkbox" class="schedule-day" value="5" checked> T6</label>
+            <label><input type="checkbox" class="schedule-day" value="6"> T7</label>
+          </div>
+        </div>
+        <div class="row-2">
+          <button class="btn-on" onclick="saveWeeklySchedule(1)">Lưu lịch BẬT</button>
+          <button class="btn-off" onclick="saveWeeklySchedule(0)">Lưu lịch TẮT</button>
+        </div>
+        <div class="feedback" id="scheduleFeedback"></div>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-title">Danh sách lịch đang hoạt động</div>
+        <div id="weeklyScheduleList"><div class="info-box">Chưa có lịch hẹn lặp lại nào.</div></div>
+      </div>
+    </div>
+
+    <!-- TAB CÀI ĐẶT -->
+    <div id="tab-settings" class="tab-view">
+      <div class="page-title">Cài đặt GitHub & Thiết bị</div>
+
+      <div class="panel-card">
+        <div class="panel-title">Kết nối đồng bộ GitHub</div>
+        <div class="field">
+          <label>GitHub Owner (tên tài khoản / tổ chức)</label>
+          <input type="text" class="input-ctrl" id="ghOwner" placeholder="Ví dụ: dovan-toan">
+        </div>
+        <div class="field">
+          <label>Repository name</label>
+          <input type="text" class="input-ctrl" id="ghRepo" placeholder="Ví dụ: toan-smart-home">
+        </div>
+        <div class="row-2">
+          <div class="field" style="flex:2;">
+            <label>Đường dẫn file JSON</label>
+            <input type="text" class="input-ctrl" id="ghPath" value="state/device_state.json">
+          </div>
+          <div class="field" style="flex:1;">
+            <label>Nhánh</label>
+            <input type="text" class="input-ctrl" id="ghBranch" value="main">
+          </div>
+        </div>
+        <div class="field">
+          <label>Fine-grained Token (Contents: Read & Write)</label>
+          <input type="password" class="input-ctrl" id="ghToken" placeholder="github_pat_...">
+        </div>
+        <button class="btn-primary" onclick="saveGitHubConfig()">Lưu cấu hình GitHub</button>
+        <div class="feedback" id="ghFeedback"></div>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-title">Vị trí & Thời tiết</div>
+        <div class="field">
+          <label>Địa điểm hiển thị</label>
+          <input type="text" class="input-ctrl" id="locationField" maxlength="45" placeholder="Ví dụ: Hà Nội hoặc Tam Hồng, Phú Thọ">
+        </div>
+        <button class="btn-primary" onclick="saveLocation()">Lưu vị trí</button>
+        <div class="feedback" id="locFeedback"></div>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-title">Đổi tên 8 kênh thiết bị</div>
+        <div id="relayNameFields"></div>
+        <button class="btn-primary" onclick="saveNames()">Lưu tên thiết bị</button>
+        <div class="feedback" id="nameFeedback"></div>
+      </div>
+    </div>
+
+    <!-- TAB CÁ NHÂN -->
+    <div id="tab-profile" class="tab-view">
+      <div class="page-title">Thông tin hệ thống</div>
+      <div class="panel-card">
+        <div class="panel-title">Toan Smart Home • ESP32 + GitHub</div>
+        <div class="info-box" id="profileInfoBox">
+          Điều khiển 8 kênh qua trình duyệt web iPhone qua GitHub<br>
+          Trạng thái đồng bộ: Đang kiểm tra...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" onclick="switchTab('home', this)">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5.5v-6h-5v6H4a1 1 0 0 1-1-1v-9.5z"></path>
+      </svg>
+      <span>Trang chủ</span>
+    </button>
+    <button class="nav-btn" onclick="switchTab('timer', this)">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="17" rx="2.5"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>
+      </svg>
+      <span>Hẹn giờ</span>
+    </button>
+    <button class="nav-btn" onclick="switchTab('settings', this)">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+      <span>Cài đặt</span>
+    </button>
+    <button class="nav-btn" onclick="switchTab('profile', this)">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-3.5 3.6-6 8-6s8 2.5 8 6"></path>
+      </svg>
+      <span>Cá nhân</span>
+    </button>
+  </nav>
+
+  <script>
+    const NUM_RELAYS = 8;
+    const STORAGE_KEY = 'toan_smarthome_gh_cfg_v1';
+
+    let state = {
+      weatherTemp: 28,
+      weatherDesc: 'Có mây',
+      location: 'Hà Nội',
+      dateStr: 'CN, 22/11/2026',
+      weatherHum: 72,
+      clockHm: '12:17',
+      relays: [true, true, false, true, true, true, false, true],
+      names: ['Biển LED', 'Bóng điện 1', 'Phòng Khách', 'Quạt', 'Phòng Ăn', 'Bàn làm việc', 'Máy bơm nước', 'Camera'],
+      timers: [0, 0, 0, 0, 0, 0, 0, 0],
+      timerTargets: [false, false, false, false, false, false, false, false],
+      schedules: []
+    };
+
+    let ghConfig = loadGhConfig();
+    let ghSha = '';
+    let isConnected = false;
+    let lockPollUntil = 0;
+    let pushQueue = Promise.resolve();
+    let settingsInitialized = false;
+    let timerSelectInitialized = false;
+
+    function loadGhConfig() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return { owner: '', repo: '', path: 'state/device_state.json', branch: 'main', token: '' };
+    }
+
+    function saveGhConfigToStorage() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(ghConfig));
+    }
+
+    function hasGhConfig() {
+      return Boolean(ghConfig.owner && ghConfig.repo && ghConfig.path && ghConfig.token);
+    }
+
+    function utf8ToBase64(str) {
+      const bytes = new TextEncoder().encode(str);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      return btoa(bin);
+    }
+
+    function base64ToUtf8(b64) {
+      const clean = b64.replace(/\s+/g, '');
+      const bin = atob(clean);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new TextDecoder().decode(bytes);
+    }
+
+    function getDeviceSvg(idx, isOn) {
+      switch (idx) {
+        case 0:
+          return `<svg width="64" height="44" viewBox="0 0 68 48" fill="none">
+            <defs><radialGradient id="ceilBeam" cx="50%" cy="22%" r="75%"><stop offset="0%" stop-color="#FFFBEB" stop-opacity="${isOn ? '0.95' : '0.15'}"/><stop offset="55%" stop-color="#FDE047" stop-opacity="${isOn ? '0.45' : '0'}"/><stop offset="100%" stop-color="#FDE047" stop-opacity="0"/></radialGradient></defs>
+            ${isOn ? '<ellipse cx="34" cy="27" rx="28" ry="18" fill="url(#ceilBeam)"/>' : ''}
+            <ellipse cx="34" cy="16" rx="23" ry="8.5" fill="#1F2028" stroke="#6B7280" stroke-width="1.4"/>
+            <ellipse cx="34" cy="17.5" rx="18" ry="6" fill="${isOn ? '#FFFDF0' : '#4B505C'}"/>
+          </svg>`;
+        case 1:
+          return `<svg width="48" height="46" viewBox="0 0 52 52" fill="none">
+            <defs><radialGradient id="bulbGlow" cx="50%" cy="42%" r="52%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="${isOn ? '0.92' : '0'}"/><stop offset="100%" stop-color="#FEF08A" stop-opacity="0"/></radialGradient></defs>
+            ${isOn ? '<circle cx="26" cy="21" r="21" fill="url(#bulbGlow)"/>' : ''}
+            <path d="M26 5C17.2 5 10 12.2 10 21c0 5.8 3.1 10.9 7.8 13.7 1.4.8 2.2 2.3 2.2 3.9V40h12v-1.4c0-1.6.8-3.1 2.2-3.9C38.9 31.9 42 26.8 42 21 42 12.2 34.8 5 26 5z" fill="${isOn ? '#F8FAFC' : '#525663'}"/>
+            <ellipse cx="21" cy="16" rx="3.4" ry="6.2" transform="rotate(-18 21 16)" fill="#FFFFFF" opacity="${isOn ? '0.85' : '0.2'}"/>
+            <rect x="20.5" y="40" width="11" height="7" rx="2" fill="#9CA3AF"/>
+          </svg>`;
+        case 2:
+          return `<svg width="64" height="44" viewBox="0 0 68 48" fill="none">
+            <path d="M13 13a5 5 0 0 1 5-5h32a5 5 0 0 1 5 5v12H13V13z" fill="#D1D5DB"/>
+            <line x1="34" y1="8" x2="34" y2="25" stroke="#9CA3AF" stroke-width="1.5"/>
+            <rect x="7" y="18" width="8.5" height="15" rx="3.5" fill="#E5E7EB"/><rect x="52.5" y="18" width="8.5" height="15" rx="3.5" fill="#E5E7EB"/>
+            <rect x="14" y="24" width="40" height="9" rx="3" fill="#F3F4F6"/>
+            <rect x="14" y="33" width="3.5" height="7" rx="1.2" fill="#D97706"/><rect x="50.5" y="33" width="3.5" height="7" rx="1.2" fill="#D97706"/>
+          </svg>`;
+        case 3:
+          return `<svg width="48" height="46" viewBox="0 0 54 54" fill="none">
+            <circle cx="27" cy="21" r="16.5" stroke="${isOn ? '#BAE6FD' : '#6B7280'}" stroke-width="1.8" fill="rgba(14, 165, 233, ${isOn ? '0.16' : '0.03'})"/>
+            <path d="M27 21L22 9.5C25 8 29 8 32 9.5L27 21Z" fill="${isOn ? '#38BDF8' : '#64748B'}"/>
+            <path d="M27 21L38.5 25C38.5 28.5 36.4 31.5 33.4 33L27 21Z" fill="${isOn ? '#0EA5E9' : '#475569'}"/>
+            <path d="M27 21L15.5 25C15.5 28.5 17.6 31.5 20.6 33L27 21Z" fill="${isOn ? '#7DD3FC' : '#94A3B8'}"/>
+            <circle cx="27" cy="21" r="3.6" fill="#F8FAFC"/>
+            <rect x="25" y="37.5" width="4" height="9" fill="#CBD5E1"/><ellipse cx="27" cy="47.5" rx="11" ry="3.2" fill="#E2E8F0"/>
+          </svg>`;
+        case 4:
+          return `<svg width="64" height="44" viewBox="0 0 68 48" fill="none">
+            <rect x="9" y="10" width="9" height="16" rx="2" fill="#D97706"/><rect x="50" y="10" width="9" height="16" rx="2" fill="#D97706"/>
+            <rect x="19" y="21" width="30" height="4" rx="1.5" fill="#FBBF24"/><rect x="32.2" y="25" width="3.6" height="15" fill="#D97706"/>
+            <rect x="10" y="25" width="2.6" height="15" fill="#B45309"/><rect x="16" y="25" width="2.6" height="15" fill="#B45309"/>
+            <rect x="50" y="25" width="2.6" height="15" fill="#B45309"/><rect x="56" y="25" width="2.6" height="15" fill="#B45309"/>
+          </svg>`;
+        case 5:
+          return `<svg width="56" height="46" viewBox="0 0 62 52" fill="none">
+            <ellipse cx="24" cy="44" rx="12" ry="3.2" fill="#D97706"/>
+            <path d="M24 43L32 25L22 13" stroke="#F59E0B" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M18 12L34 8L41 19L23 22L18 12Z" fill="#27272A" stroke="#71717A" stroke-width="1.4"/>
+            <path d="M33 20.5L47 42H27L33 20.5Z" fill="#FDE047" opacity="${isOn ? '0.68' : '0.08'}"/>
+          </svg>`;
+        case 6:
+          return `<svg width="62" height="44" viewBox="0 0 68 48" fill="none">
+            <rect x="16" y="13" width="30" height="22" rx="6" fill="${isOn ? '#2563EB' : '#1D4ED8'}" stroke="#93C5FD" stroke-width="1.3"/>
+            <line x1="22" y1="18" x2="40" y2="18" stroke="#DBEAFE" stroke-width="1.5"/>
+            <line x1="22" y1="24" x2="40" y2="24" stroke="#DBEAFE" stroke-width="1.5"/>
+            <line x1="22" y1="30" x2="40" y2="30" stroke="#DBEAFE" stroke-width="1.5"/>
+            <rect x="27" y="8" width="8" height="5" rx="1.5" fill="#60A5FA"/>
+            <rect x="46" y="19" width="8" height="10" rx="2" fill="#3B82F6"/>
+            <rect x="18" y="35" width="26" height="4" rx="1.5" fill="#1E3A8A"/>
+          </svg>`;
+        default:
+          return `<svg width="56" height="44" viewBox="0 0 64 48" fill="none">
+            <path d="M14 23c0-7 6-12 15-12h12c6 0 10 4 10 10v7c0 4-3 7-7 7H22c-5 0-8-3-8-12z" fill="#E5E7EB"/>
+            <circle cx="41" cy="25" r="7.5" fill="#1F2937" stroke="#9CA3AF" stroke-width="1.6"/>
+            <circle cx="41" cy="25" r="3.4" fill="${isOn ? '#38BDF8' : '#4B5563'}"/>
+            <rect x="19" y="35" width="12" height="6" rx="2" fill="#D1D5DB"/>
+          </svg>`;
+      }
+    }
+
+    function escapeHtml(s) {
+      const d = document.createElement('div');
+      d.innerText = String(s || '');
+      return d.innerHTML;
+    }
+
+    function switchTab(tabName, btnEl) {
+      document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + tabName).classList.add('active');
+      if (btnEl) btnEl.classList.add('active');
+
+      if (tabName === 'timer') {
+        populateTimerChannels();
+        renderScheduleList();
+      } else if (tabName === 'settings') {
+        populateSettingsFields();
+      } else if (tabName === 'profile') {
+        renderProfileBox();
+      }
+    }
+
+    function updateWifiIndicatorUI(connected) {
+      const box = document.getElementById('wifiIndicator');
+      const halo = document.getElementById('ledHalo');
+      const rays = document.getElementById('ledRays');
+      const ring = document.getElementById('ledRing');
+      const txt = document.getElementById('wifiLedText');
+
+      if (connected) {
+        box.classList.remove('offline');
+        halo.setAttribute('fill', 'url(#ledGlowGreen)');
+        rays.setAttribute('stroke', '#22E53B');
+        ring.setAttribute('fill', '#16A34A');
+        ring.setAttribute('stroke', '#86EFAC');
+        txt.innerHTML = 'Kết nối<br>WiFi';
+      } else {
+        box.classList.add('offline');
+        halo.setAttribute('fill', 'url(#ledGlowWarn)');
+        rays.setAttribute('stroke', '#FACC15');
+        ring.setAttribute('fill', '#D97706');
+        ring.setAttribute('stroke', '#FDE047');
+        txt.innerHTML = 'Chờ cấu hình<br>GitHub';
+      }
+    }
+
+    function renderHome() {
+      updateWifiIndicatorUI(isConnected);
+      document.getElementById('weatherTemp').innerText = `${Math.round(Number(state.weatherTemp ?? 28))}°C`;
+      document.getElementById('weatherCond').innerText = state.weatherDesc || 'Có mây';
+      document.getElementById('locationText').innerText = state.location || 'Hà Nội';
+      document.getElementById('locationText').title = state.location || 'Hà Nội';
+      document.getElementById('dateText').innerText = state.dateStr || 'CN, 22/11/2026';
+      document.getElementById('outdoorHumText').innerText = `Độ ẩm: ${Number(state.weatherHum ?? 72)}%`;
+      document.getElementById('clockText').innerText = state.clockHm || '12:17';
+
+      const grid = document.getElementById('relayGrid');
+      grid.innerHTML = '';
+      let onCount = 0;
+
+      for (let idx = 0; idx < NUM_RELAYS; idx++) {
+        const st = Boolean(state.relays[idx]);
+        if (st) onCount++;
+        const name = state.names[idx] || `Thiết bị ${idx + 1}`;
+        const rem = Number(state.timers[idx] || 0);
+        const target = state.timerTargets[idx] ? 'BẬT' : 'TẮT';
+
+        const card = document.createElement('div');
+        card.className = 'relay-card';
+        card.innerHTML = `
+          <div class="relay-top">
+            <div class="relay-icon-box" onclick="toggleRelay(${idx})">${getDeviceSvg(idx, st)}</div>
+            <label class="switch">
+              <input type="checkbox" ${st ? 'checked' : ''} onchange="toggleRelay(${idx})">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="relay-meta">
+            <div class="relay-title">${escapeHtml(name)}</div>
+            ${rem > 0 ? `<span class="timer-badge">${rem}p → ${target}</span>` : ''}
+          </div>`;
+        grid.appendChild(card);
+      }
+
+      document.getElementById('masterBtnText').innerText = (onCount > 0) ? 'Tắt tất cả thiết bị' : 'Bật tất cả thiết bị';
+    }
+
+    function renderProfileBox() {
+      document.getElementById('profileInfoBox').innerHTML =
+        `<b>Repo:</b> ${escapeHtml(ghConfig.owner || '-')}/${escapeHtml(ghConfig.repo || '-')}<br>` +
+        `<b>File đồng bộ:</b> ${escapeHtml(ghConfig.path || 'state/device_state.json')}<br>` +
+        `<b>Trạng thái:</b> ${isConnected ? 'Đã kết nối GitHub' : 'Chưa cấu hình / Chờ đồng bộ'}`;
+    }
+
+    function contentsApiUrl() {
+      const cleanPath = String(ghConfig.path || 'state/device_state.json').replace(/^\/+/, '');
+      return `https://api.github.com/repos/${encodeURIComponent(ghConfig.owner)}/${encodeURIComponent(ghConfig.repo)}/contents/${cleanPath}`;
+    }
+
+    async function pullFromGitHub(force = false) {
+      if (!hasGhConfig()) {
+        isConnected = false;
+        renderHome();
+        return;
+      }
+      if (!force && Date.now() < lockPollUntil) return;
+
+      try {
+        const branch = encodeURIComponent(ghConfig.branch || 'main');
+        const res = await fetch(`${contentsApiUrl()}?ref=${branch}&t=${Date.now()}`, {
+          headers: {
+            'Authorization': `Bearer ${ghConfig.token}`,
+            'Accept': 'application/vnd.github+json'
+          },
+          cache: 'no-store'
+        });
+
+        if (!res.ok) {
+          isConnected = false;
+          renderHome();
+          return;
+        }
+
+        const data = await res.json();
+        ghSha = data.sha || ghSha;
+        if (data.content) {
+          const decoded = JSON.parse(base64ToUtf8(data.content));
+          if (Date.now() >= lockPollUntil || force) {
+            state = {
+              ...state,
+              ...decoded,
+              relays: Array.isArray(decoded.relays) && decoded.relays.length === NUM_RELAYS ? decoded.relays : state.relays,
+              names: Array.isArray(decoded.names) && decoded.names.length === NUM_RELAYS ? decoded.names : state.names,
+              timers: Array.isArray(decoded.timers) && decoded.timers.length === NUM_RELAYS ? decoded.timers : state.timers,
+              timerTargets: Array.isArray(decoded.timerTargets) && decoded.timerTargets.length === NUM_RELAYS ? decoded.timerTargets : state.timerTargets,
+              schedules: Array.isArray(decoded.schedules) ? decoded.schedules : (state.schedules || [])
+            };
+          }
+        }
+        isConnected = true;
+        renderHome();
+        syncTimerCancelBtn();
+        renderScheduleList();
+      } catch (e) {
+        isConnected = false;
+        renderHome();
+      }
+    }
+
+    function enqueuePushToGitHub(message = 'Update state from iPhone web') {
+      lockPollUntil = Date.now() + 2200;
+      renderHome();
+
+      pushQueue = pushQueue.then(async () => {
+        if (!hasGhConfig()) return;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          if (!ghSha) {
+            await pullFromGitHub(true);
+          }
+          const payload = {
+            message,
+            content: utf8ToBase64(JSON.stringify(state, null, 2)),
+            branch: ghConfig.branch || 'main',
+            ...(ghSha ? { sha: ghSha } : {})
+          };
+          const res = await fetch(contentsApiUrl(), {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${ghConfig.token}`,
+              'Accept': 'application/vnd.github+json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) {
+            const out = await res.json();
+            if (out.content && out.content.sha) ghSha = out.content.sha;
+            isConnected = true;
+            return;
+          }
+          if (res.status === 409) {
+            ghSha = '';
+            await pullFromGitHub(true);
+          } else {
+            break;
+          }
+        }
+      }).catch(() => {});
+      return pushQueue;
+    }
+
+    function toggleRelay(idx) {
+      state.relays[idx] = !state.relays[idx];
+      state.timers[idx] = 0;
+      enqueuePushToGitHub(`Toggle relay ${idx + 1}`);
+    }
+
+    function toggleAllDevices() {
+      const anyOn = state.relays.some(Boolean);
+      const next = !anyOn;
+      state.relays = state.relays.map(() => next);
+      state.timers = state.timers.map(() => 0);
+      enqueuePushToGitHub(next ? 'Turn all ON' : 'Turn all OFF');
+    }
+
+    function populateTimerChannels() {
+      const sel1 = document.getElementById('timerChannel');
+      const sel2 = document.getElementById('scheduleRelay');
+      const prev1 = sel1.value;
+      const prev2 = sel2.value;
+      sel1.innerHTML = '';
+      sel2.innerHTML = '';
+      for (let i = 0; i < NUM_RELAYS; i++) {
+        const label = `Relay ${i + 1} - ${state.names[i] || ('Kênh ' + (i + 1))}`;
+        sel1.add(new Option(label, i));
+        sel2.add(new Option(label, i));
+      }
+      if (timerSelectInitialized) {
+        sel1.value = prev1;
+        sel2.value = prev2;
+      }
+      timerSelectInitialized = true;
+      syncTimerCancelBtn();
+    }
+
+    function syncTimerCancelBtn() {
+      const sel = document.getElementById('timerChannel');
+      if (!sel) return;
+      const idx = parseInt(sel.value || '0', 10);
+      const rem = Number(state.timers[idx] || 0);
+      const btn = document.getElementById('cancelTimerBtn');
+      if (rem > 0) {
+        btn.style.display = 'block';
+        btn.innerText = `Hủy hẹn giờ đang chạy (còn ${rem} phút)`;
+      } else {
+        btn.style.display = 'none';
+      }
+    }
+
+    function submitTimer(target) {
+      const idx = parseInt(document.getElementById('timerChannel').value, 10);
+      const mins = parseInt(document.getElementById('timerMinutes').value, 10);
+      if (!mins || mins < 1) {
+        document.getElementById('timerFeedback').innerText = 'Vui lòng nhập số phút >= 1';
+        return;
+      }
+      state.timers[idx] = mins;
+      state.timerTargets[idx] = Boolean(target);
+      document.getElementById('timerFeedback').innerText = `Đã đặt hẹn giờ ${mins} phút cho Relay ${idx + 1}.`;
+      enqueuePushToGitHub(`Set timer R${idx + 1}`);
+    }
+
+    function cancelTimer() {
+      const idx = parseInt(document.getElementById('timerChannel').value, 10);
+      state.timers[idx] = 0;
+      document.getElementById('timerFeedback').innerText = 'Đã hủy hẹn giờ.';
+      enqueuePushToGitHub(`Cancel timer R${idx + 1}`);
+    }
+
+    function saveWeeklySchedule(target) {
+      const days = [...document.querySelectorAll('.schedule-day:checked')].reduce((m, el) => m | (1 << Number(el.value)), 0);
+      const relay = Number(document.getElementById('scheduleRelay').value);
+      const hour = Number(document.getElementById('scheduleHour').value);
+      const minute = Number(document.getElementById('scheduleMinute').value);
+      if (!days) {
+        document.getElementById('scheduleFeedback').innerText = 'Hãy chọn ít nhất 1 ngày trong tuần.';
+        return;
+      }
+      if (!Array.isArray(state.schedules)) state.schedules = [];
+      state.schedules.push({
+        id: Date.now(),
+        enabled: true,
+        relay,
+        days,
+        hour,
+        minute,
+        on: Boolean(target)
+      });
+      renderScheduleList();
+      document.getElementById('scheduleFeedback').innerText = 'Đã lưu lịch hẹn.';
+      enqueuePushToGitHub('Save weekly schedule');
+    }
+
+    function deleteWeeklySchedule(id) {
+      state.schedules = (state.schedules || []).filter(s => s.id !== id);
+      renderScheduleList();
+      enqueuePushToGitHub('Delete weekly schedule');
+    }
+
+    function renderScheduleList() {
+      const box = document.getElementById('weeklyScheduleList');
+      if (!box) return;
+      const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+      const active = (state.schedules || []).filter(s => s.enabled);
+      if (!active.length) {
+        box.innerHTML = '<div class="info-box" style="margin:0;">Chưa có lịch hẹn lặp lại nào.</div>';
+        return;
+      }
+      box.innerHTML = active.map(s => {
+        const dayText = days.filter((d, i) => s.days & (1 << i)).join(', ');
+        const nm = state.names[s.relay] || `Relay ${s.relay + 1}`;
+        return `<div class="info-box" style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <b>${escapeHtml(nm)}</b> • ${String(s.hour).padStart(2, '0')}:${String(s.minute).padStart(2, '0')} (${s.on ? 'BẬT' : 'TẮT'})<br>
+            <span style="color:#818cf8;">${dayText}</span>
+          </div>
+          <button class="btn-subtle" onclick="deleteWeeklySchedule(${s.id})">Xóa</button>
+        </div>`;
+      }).join('');
+    }
+
+    function populateSettingsFields() {
+      if (!settingsInitialized) {
+        document.getElementById('ghOwner').value = ghConfig.owner || '';
+        document.getElementById('ghRepo').value = ghConfig.repo || '';
+        document.getElementById('ghPath').value = ghConfig.path || 'state/device_state.json';
+        document.getElementById('ghBranch').value = ghConfig.branch || 'main';
+        document.getElementById('ghToken').value = ghConfig.token || '';
+        document.getElementById('locationField').value = state.location || '';
+        settingsInitialized = true;
+      }
+      const wrap = document.getElementById('relayNameFields');
+      wrap.innerHTML = '';
+      for (let i = 0; i < NUM_RELAYS; i++) {
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.className = 'input-ctrl';
+        inp.id = `rName_${i}`;
+        inp.maxLength = 30;
+        inp.value = state.names[i] || `Thiết bị ${i + 1}`;
+        inp.style.marginBottom = '8px';
+        wrap.appendChild(inp);
+      }
+    }
+
+    function saveGitHubConfig() {
+      ghConfig = {
+        owner: document.getElementById('ghOwner').value.trim(),
+        repo: document.getElementById('ghRepo').value.trim(),
+        path: document.getElementById('ghPath').value.trim() || 'state/device_state.json',
+        branch: document.getElementById('ghBranch').value.trim() || 'main',
+        token: document.getElementById('ghToken').value.trim()
+      };
+      ghSha = '';
+      saveGhConfigToStorage();
+      document.getElementById('ghFeedback').innerText = 'Đã lưu cấu hình GitHub. Đang đồng bộ...';
+      pullFromGitHub(true);
+    }
+
+    function saveLocation() {
+      const loc = document.getElementById('locationField').value.trim();
+      if (!loc) return;
+      state.location = loc;
+      renderHome();
+      document.getElementById('locFeedback').innerText = 'Đã cập nhật vị trí.';
+      enqueuePushToGitHub('Update location');
+    }
+
+    function saveNames() {
+      for (let i = 0; i < NUM_RELAYS; i++) {
+        const val = document.getElementById(`rName_${i}`).value.trim();
+        if (val) state.names[i] = val;
+      }
+      renderHome();
+      document.getElementById('nameFeedback').innerText = 'Đã lưu tên các thiết bị.';
+      enqueuePushToGitHub('Update relay names');
+    }
+
+    renderHome();
+    pullFromGitHub(true);
+
+    const pollTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') pullFromGitHub(false);
+    }, 2500);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') pullFromGitHub(true);
+    });
+  </script>
+</body>
+</html>
